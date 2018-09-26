@@ -1,29 +1,30 @@
-# angular-oauth2-oidc
+# @md-connect/angular-oauth2-oidc-native
 
-Support for OAuth 2 and OpenId Connect (OIDC) in Angular.
+Support for OAuth 2 and OpenId Connect (OIDC) for Native Apps (RFC 8252) in Angular.
 
 ![OIDC Certified Logo](https://raw.githubusercontent.com/manfredsteyer/angular-oauth2-oidc/master/oidc.png)
 
 ## Credits
 
+- [angular-oauth2-oidc](https://github.com/manfredsteyer/angular-oauth2-oidc) for the base version of this library
 - [generator-angular2-library](https://github.com/jvandemo/generator-angular2-library) for scaffolding an Angular library
-- [jsrasign](https://kjur.github.io/jsrsasign/) for validating token signature and for hashing
+- [angular2-jwt](https://github.com/auth0/angular2-jwt) for handling jwts in angular
 - [Identity Server](https://github.com/identityserver) (used for testing with an .NET/.NET Core Backend)
 - [Keycloak (Redhat)](http://www.keycloak.org/) for testing with Java
 
 ## Resources
 
 - Sources and Sample:
-https://github.com/manfredsteyer/angular-oauth2-oidc
+https://github.com/mobilcom-debitel/angular-oauth2-oidc-native
 
 - Source Code Documentation
-https://manfredsteyer.github.io/angular-oauth2-oidc/docs
+https://github.com/mobilcom-debitel/angular-oauth2-oidc-native/docs (Todo: add native flow changes)
 
 ## Tested Environment
 
-Successfully tested with **Angular 6** and its Router, PathLocationStrategy as well as HashLocationStrategy and CommonJS-Bundling via webpack. At server side we've used IdentityServer (.NET/ .NET Core) and Redhat's Keycloak (Java).
+Upstream library was successfully tested with **Angular 6** and its Router, PathLocationStrategy as well as HashLocationStrategy and CommonJS-Bundling via webpack. At server side we've used IdentityServer (.NET/ .NET Core) and Redhat's Keycloak (Java).
 
-**Angular 5.x or 4.3**: If you need support for Angular < 6 (4.3 to 5.x) you can download the former version 3.1.4 (npm i angular-oauth2-oidc@^3 --save).
+**Angular 5.x or 4.3**: No versions available.
 
 ## Release Cycle
 
@@ -37,7 +38,10 @@ Successfully tested with **Angular 6** and its Router, PathLocationStrategy as w
 - The closed issues contain some ideas for PRs and enhancements (see labels)
 
 # Features 
-- Logging in via OAuth2 and OpenId Connect (OIDC) Implicit Flow (where a user is redirected to Identity Provider)
+- Logging in via OAuth2 and OpenId Connect (OIDC) Authorize Code Flow (where a user is redirected to Identity Provider)
+- Uses OAuth2 for Native Apps by default (see https://tools.ietf.org/html/rfc8252)
+- Uses Proof Key for Code Exchange by OAuth Public Clients by default (see https://tools.ietf.org/html/rfc7636)
+- Supports Implicit Flow (must be configured explicitly) 
 - "Logging in" via Password Flow (where a user enters their password into the client)
 - Token Refresh for Password Flow by using a Refresh Token
 - Automatically refreshing a token when/some time before it expires
@@ -47,32 +51,17 @@ Successfully tested with **Angular 6** and its Router, PathLocationStrategy as w
 - Hook for further custom validations
 - Single-Sign-Out by redirecting to the auth-server's logout-endpoint
 
-## Sample-Auth-Server
-
-You can use the OIDC-Sample-Server mentioned in the samples for Testing. It assumes, that your Web-App runs on http://localhost:8080.
-
-Username/Password: max/geheim
-
-*clientIds:* 
-- spa-demo (implicit flow)
-- demo-resource-owner (resource owner password flow)
-
-*redirectUris:*
-- localhost:[8080-8089|4200-4202]
-- localhost:[8080-8089|4200-4202]/index.html
-- localhost:[8080-8089|4200-4202]/silent-refresh.html
-
 ## Installing
 
 ```
-npm i angular-oauth2-oidc --save
+npm i @md-connect/angular-oauth2-oidc-native --save
 ```
 
 ## Importing the NgModule
 
 ```TypeScript
 import { HttpClientModule } from '@angular/common/http';
-import { OAuthModule } from 'angular-oauth2-oidc';
+import { OAuthModule } from '@md-connect/angular-oauth2-oidc-native';
 // etc.
 
 @NgModule({
@@ -94,24 +83,23 @@ export class AppModule {
 }
 ``` 
 
-## Configuring for Implicit Flow
+## Configuring for Authorize Code Flow
 
-This section shows how to implement login leveraging implicit flow. This is the OAuth2/OIDC flow best suitable for
-Single Page Application. It sends the user to the Identity Provider's login page. After logging in, the SPA gets tokens.
-This also allows for single sign on as well as single sign off.
+This section shows how to implement login leveraging authorization code flow for native apps. 
+This is the OAuth2/OIDC flow recommended by rfc8252 for Single Page Application. It sends the user to the Identity Provider's login page. 
+After logging in, the SPA gets tokens. This also allows for single sign on as well as single sign off.
 
-To configure the library, the following sample uses the new configuration API introduced with Version 2.1.
-Hence, the original API is still supported.
+To configure the library, you should use the new configuration API.
 
 ```TypeScript
-import { AuthConfig } from 'angular-oauth2-oidc';
+import { AuthConfig } from '@md-connect/angular-oauth2-oidc-native';
 
 export const authConfig: AuthConfig = {
 
   // Url of the Identity Provider
-  issuer: 'https://steyer-identity-server.azurewebsites.net/identity',
+  issuer: 'https://identity.mobilcom-debitel.de/v2/oidc/',
 
-  // URL of the SPA to redirect the user to after login
+  // URL of the SPA to use as callback for the flow, also redirect the user to after login
   redirectUri: window.location.origin + '/index.html',
 
   // The SPA's id. The SPA is registerd with this id at the auth-server
@@ -126,8 +114,8 @@ export const authConfig: AuthConfig = {
 Configure the OAuthService with this config object when the application starts up:
 
 ```TypeScript
-import { OAuthService } from 'angular-oauth2-oidc';
-import { JwksValidationHandler } from 'angular-oauth2-oidc';
+import { OAuthService } from '@md-connect/angular-oauth2-oidc-native';
+import { JwksValidationHandler } from '@md-connect/angular-oauth2-oidc-native';
 import { authConfig } from './auth.config';
 import { Component } from '@angular/core';
 
@@ -149,64 +137,10 @@ export class AppComponent {
 }
 ```
 
-### Implementing a Login Form
-
-After you've configured the library, you just have to call ``initImplicitFlow`` to login using OAuth2/ OIDC.
-
-```TypeScript
-import { Component } from '@angular/core';
-import { OAuthService } from 'angular-oauth2-oidc';
-
-@Component({
-    templateUrl: "app/home.html"
-})
-export class HomeComponent {
-
-    constructor(private oauthService: OAuthService) {
-    }
-
-    public login() {
-        this.oauthService.initImplicitFlow();
-    }
-
-    public logoff() {
-        this.oauthService.logOut();
-    }
-
-    public get name() {
-        let claims = this.oauthService.getIdentityClaims();
-        if (!claims) return null;
-        return claims.given_name;
-    }
-
-}
-```
-
-The following snippet contains the template for the login page:
-
-```HTML
-<h1 *ngIf="!name">
-    Hallo
-</h1>
-<h1 *ngIf="name">
-    Hallo, {{name}}
-</h1>
-
-<button class="btn btn-default" (click)="login()">
-    Login
-</button>
-<button class="btn btn-default" (click)="logoff()">
-    Logout
-</button>
-
-<div>
-    Username/Passwort zum Testen: max/geheim
-</div>
-```
-
 ### Skipping the Login Form
 
-If you don't want to display a login form that tells the user that they are redirected to the identity server, you can use the convenience function ``this.oauthService.loadDiscoveryDocumentAndLogin();`` instead of ``this.oauthService.loadDiscoveryDocumentAndTryLogin();`` when setting up the library. 
+If you don't want to display a login form that tells the user that they are redirected to the identity server, 
+you can use the convenience function ``this.oauthService.loadDiscoveryDocumentAndLogin();`` instead of ``this.oauthService.loadDiscoveryDocumentAndTryLogin();`` when setting up the library. 
 
 This directly redirects the user to the identity server if there are no valid tokens. 
 
@@ -229,7 +163,7 @@ var headers = new HttpHeaders({
 });
 ```
 
-Since 3.1 you can also automate this task by switching ``sendAccessToken`` on and by setting ``allowedUrls`` to an array with prefixes for the respective URLs. Use lower case for the prefixes.
+You can also automate this task by switching ``sendAccessToken`` on and by setting ``allowedUrls`` to an array with prefixes for the respective URLs. Use lower case for the prefixes.
 
 ```TypeScript
 OAuthModule.forRoot({
@@ -244,11 +178,11 @@ OAuthModule.forRoot({
 
 If you use the ``PathLocationStrategy`` (which is on by default) and have a general catch-all-route (``path: '**'``) you should be fine. Otherwise look up the section ``Routing with the HashStrategy`` in the [documentation](https://manfredsteyer.github.io/angular-oauth2-oidc/docs/).
 
-## More Documentation
+## More Documentation (not including the native app flow at the moment)
 
 See the [documentation](https://manfredsteyer.github.io/angular-oauth2-oidc/docs/) for more information about this library.
 
-## Tutorials
+## Tutorials (from the upstream module, not using the native app flow)
 
 * [Tutorial with Demo Servers available online](https://www.softwarearchitekt.at/post/2016/07/03/authentication-in-angular-2-with-oauth2-oidc-and-guards-for-the-newest-new-router-english-version.aspx)
 * [Angular Authentication with OpenID Connect and Okta in 20 Minutes](https://developer.okta.com/blog/2017/04/17/angular-authentication-with-oidc)
