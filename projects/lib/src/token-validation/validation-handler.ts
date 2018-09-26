@@ -1,3 +1,5 @@
+import {Algorithms} from '../crypto/algorithms';
+
 export interface ValidationParams {
   idToken: string;
   accessToken: string;
@@ -23,6 +25,8 @@ export abstract class ValidationHandler {
    * Validates the at_hash in an id_token against the received access_token.
    */
   public abstract validateAtHash(validationParams: ValidationParams): Promise<boolean>;
+
+  public abstract calcHash(valueToHash: string, algorithm: string): Promise<string>;
 }
 
 /**
@@ -40,19 +44,27 @@ export abstract class AbstractValidationHandler implements ValidationHandler {
    * Validates the at_hash in an id_token against the received access_token.
    */
   async validateAtHash(params: ValidationParams): Promise<boolean> {
-    let hashAlg = this.inferHashAlgorithm(params.idTokenHeader);
 
-    let tokenHash = await this.calcHash(params.accessToken, hashAlg); // sha256(accessToken, { asString: true });
+    let claimsAtHash = params.idTokenClaims['at_hash'];
 
-    let leftMostHalf = tokenHash.substr(0, tokenHash.length / 2);
+    if (!claimsAtHash || claimsAtHash.length === 0) {
+      return false;
+    }
 
-    let tokenHashBase64 = btoa(leftMostHalf);
+    claimsAtHash = claimsAtHash.replace(/=/g, '');
 
-    let atHash = tokenHashBase64
+    const hashAlg = this.inferHashAlgorithm(params.idTokenHeader);
+
+    const tokenHash = await this.calcHash(params.accessToken, hashAlg); // sha256(accessToken, { asString: true });
+
+    const leftMostHalf = tokenHash.substr(0, tokenHash.length / 2);
+
+    const tokenHashBase64 = btoa(leftMostHalf);
+
+    const atHash = tokenHashBase64
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
-    let claimsAtHash = params.idTokenClaims['at_hash'].replace(/=/g, '');
 
     if (atHash !== claimsAtHash) {
       console.error('exptected at_hash: ' + atHash);
@@ -69,13 +81,14 @@ export abstract class AbstractValidationHandler implements ValidationHandler {
    * @param jwtHeader the id_token's parsed header
    */
   protected inferHashAlgorithm(jwtHeader: object): string {
-    let alg: string = jwtHeader['alg'];
+    const alg: string = jwtHeader['alg'];
+    const algDict = Algorithms.get(alg);
 
-    if (!alg.match(/^.S[0-9]{3}$/)) {
+    if (!algDict) {
       throw new Error('Algorithm not supported: ' + alg);
     }
 
-    return 'sha' + alg.substr(2);
+    return algDict['hash'];
   }
 
   /**
@@ -85,5 +98,6 @@ export abstract class AbstractValidationHandler implements ValidationHandler {
    * @param valueToHash
    * @param algorithm
    */
-  protected abstract calcHash(valueToHash: string, algorithm: string): Promise<string>;
+  public abstract calcHash(valueToHash: string, algorithm: string): Promise<string>;
+
 }

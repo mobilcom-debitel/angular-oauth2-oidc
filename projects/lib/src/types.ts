@@ -110,6 +110,7 @@ export interface TokenResponse {
   refresh_token: string;
   scope: string;
   state?: string;
+  id_token?: string;
 }
 
 /**

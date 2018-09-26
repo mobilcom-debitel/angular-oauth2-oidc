@@ -69,7 +69,7 @@ export class AuthConfig {
    */
   public userinfoEndpoint?: string = null;
 
-  public responseType? = 'token';
+  public responseType?: string = null;
 
   /**
    * Defines whether additional debug information should
@@ -77,7 +77,7 @@ export class AuthConfig {
    * the verbosity of the console needs to be explicitly set
    * to include Debug level messages.
    */
-   public showDebugInformation? = false;
+  public showDebugInformation? = false;
 
   /**
    * The redirect uri used when doing silent refresh.
@@ -212,6 +212,32 @@ export class AuthConfig {
   public nonceStateSeparator? = ';';
 
   /**
+   * Use OAuth for Native Apps
+   *
+   * Default for this implementation
+   *
+   * @see https://tools.ietf.org/html/rfc8252
+   *
+   */
+
+  public useNativeAppFlow? = true;
+
+  /**
+   * Use PKCE
+   *
+   * @see https://tools.ietf.org/html/rfc7636
+   *
+   */
+
+  public usePKCE? = true;
+
+  /**
+   * Set challenge method for PKCE, defaults to S256
+   */
+
+  public codeChallengeMethod? = 'S256';
+
+  /**
    * Set this to true to use HTTP BASIC auth for password flow
    */
   public useHttpBasicAuthForPasswordFlow? = false;
@@ -230,4 +256,5 @@ export class AuthConfig {
   public openUri?: ((uri: string) => void) = uri => {
     location.href = uri;
   }
+
 }

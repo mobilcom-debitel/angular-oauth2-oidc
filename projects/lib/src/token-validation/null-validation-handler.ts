@@ -11,4 +11,9 @@ export class NullValidationHandler implements ValidationHandler {
   validateAtHash(validationParams: ValidationParams): Promise<boolean> {
     return Promise.resolve(true);
   }
+
+  calcHash(valueToHash: string, algorithm: string): Promise<string> {
+    return Promise.resolve(valueToHash);
+  }
+
 }

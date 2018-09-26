@@ -29,11 +29,11 @@
     "@angular/platform-browser": "6.0.0",
     "@angular/platform-browser-dynamic": "6.0.0",
     "@angular/router": "6.0.0",
+    "@auth0/angular-jwt": "^2.0.0",
     "@webcomponents/custom-elements": "^1.1.0",
-    "angular-oauth2-oidc": "^2.1.8",
     "bootstrap": "^3.3.7",
     "core-js": "^2.5.1",
-    "rxjs": "6.1.0",
+    "rxjs": "^6.3.2",
     "rxjs-compat": "^6.0.0-rc.0",
     "zone.js": "^0.8.26"
   },

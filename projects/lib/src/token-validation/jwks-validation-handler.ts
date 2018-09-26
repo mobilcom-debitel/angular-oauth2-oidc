@@ -1,7 +1,5 @@
-import {
-  AbstractValidationHandler,
-  ValidationParams
-} from './validation-handler';
+import {AbstractValidationHandler, ValidationParams} from './validation-handler';
+import {Jwt} from '../crypto/jwt';
 
 /**
  * Validates the signature of an id_token against one
@@ -10,22 +8,6 @@ import {
  * This jwks can be provided by the discovery document.
  */
 export class JwksValidationHandler extends AbstractValidationHandler {
-  /**
-   * Allowed algorithms
-   */
-  allowedAlgorithms: string[] = [
-    'HS256',
-    'HS384',
-    'HS512',
-    'RS256',
-    'RS384',
-    'RS512',
-    'ES256',
-    'ES384',
-    'PS256',
-    'PS384',
-    'PS512'
-  ];
 
   /**
    * Time period in seconds the timestamp in the signature can
@@ -33,14 +15,14 @@ export class JwksValidationHandler extends AbstractValidationHandler {
    */
   gracePeriodInSec = 600;
 
-  private cyptoObj: Crypto = window.crypto || (window as any).msCrypto // for IE11
-  private textEncoder = new (window as any).TextEncoder();
+  private jwt: Jwt = new Jwt();
 
   async validateSignature(params: ValidationParams, retry = false): Promise<any> {
-    if (!params.idToken) throw new Error('Parameter idToken expected!');
-    if (!params.idTokenHeader)
+    if (!params.idToken) { throw new Error('Parameter idToken expected!'); }
+    if (!params.idTokenHeader) {
       throw new Error('Parameter idTokenHandler expected.');
-    if (!params.jwks) throw new Error('Parameter jwks expected!');
+    }
+    if (!params.jwks) { throw new Error('Parameter jwks expected!'); }
 
     if (
       !params.jwks['keys'] ||
@@ -50,22 +32,22 @@ export class JwksValidationHandler extends AbstractValidationHandler {
       throw new Error('Array keys in jwks missing!');
     }
 
-    let kid: string = params.idTokenHeader['kid'];
-    let keys: JsonWebKey[] = params.jwks['keys'];
+    const kid: string = params.idTokenHeader['kid'];
+    const keys: JsonWebKey[] = params.jwks['keys'];
     let key: JsonWebKey;
 
-    let alg = params.idTokenHeader['alg'];
+    const alg = params.idTokenHeader['alg'];
 
     if (kid) {
       key = keys.find(k => k['kid'] === kid /* && k['use'] === 'sig' */);
     } else {
-      let kty = this.alg2kty(alg);
-      let matchingKeys = keys.filter(
+      const kty = this.alg2kty(alg);
+      const matchingKeys = keys.filter(
         k => k['kty'] === kty && k['use'] === 'sig'
       );
 
       if (matchingKeys.length > 1) {
-        let error =
+        const error =
           'More than one matching key found. Please specify a kid in the id_token header.';
         console.error(error);
         return Promise.reject(error);
@@ -82,13 +64,13 @@ export class JwksValidationHandler extends AbstractValidationHandler {
     }
 
     if (!key && retry && !kid) {
-      let error = 'No matching key found.';
+      const error = 'No matching key found.';
       console.error(error);
       return Promise.reject(error);
     }
 
     if (!key && retry && kid) {
-      let error =
+      const error =
         'expected key not found in property jwks. ' +
         'This property is most likely loaded with the ' +
         'discovery document. ' +
@@ -99,14 +81,11 @@ export class JwksValidationHandler extends AbstractValidationHandler {
       return Promise.reject(error);
     }
 
-    const [header, body, sig] = params.idToken.split(',');
+    const isValid = await this.jwt.verify(params.idToken, key, alg);
 
-    const cyptokey = await this.cyptoObj.subtle.importKey('jwk', key as any, alg, true, ['verify']);
-    const isValid = await this.cyptoObj.subtle.verify(alg, cyptokey, this.textEncoder.encode(sig), this.textEncoder.encode(body));
-
-    if(isValid) {
-      return Promise.resolve();
-    }else {
+    if (isValid) {
+      return Promise.resolve(true);
+    } else {
       return Promise.reject('Signature not valid');
     }
   }
@@ -123,19 +102,7 @@ export class JwksValidationHandler extends AbstractValidationHandler {
   }
 
   async calcHash(valueToHash: string, algorithm: string): Promise<string> {
-    const valueAsBytes = this.textEncoder.encode(valueToHash);
-    const resultBytes = await this.cyptoObj.subtle.digest(algorithm, valueAsBytes);
-    // the returned bytes are encoded as UTF-16
-    return String.fromCharCode.apply(null, new Uint16Array(resultBytes));
+    return this.jwt.hash(valueToHash, algorithm);
   }
 
-  toByteArrayAsString(hexString: string) {
-    let result = '';
-    for (let i = 0; i < hexString.length; i += 2) {
-      let hexDigit = hexString.charAt(i) + hexString.charAt(i + 1);
-      let num = parseInt(hexDigit, 16);
-      result += String.fromCharCode(num);
-    }
-    return result;
-  }
 }
