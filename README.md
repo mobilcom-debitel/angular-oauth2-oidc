@@ -1,4 +1,6 @@
-# @md-connect/angular-oauth2-oidc-native
+# DEPRECATED, please use the original module!
+
+## @md-connect/angular-oauth2-oidc-native
 
 Support for OAuth 2 and OpenId Connect (OIDC) for Native Apps (RFC 8252) in Angular.
 
